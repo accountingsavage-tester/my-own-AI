@@ -1,0 +1,40 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.phoneagent.bridge'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.phoneagent.bridge"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // Signing configuration intentionally uses placeholders for repository safety.
+    // Set the real keystore/password values locally before a release build.
+    signingConfigs {
+        void_ {
+            storeFile file("../void.keystore")
+            storePassword System.getenv("VOID_KEYSTORE_PASSWORD") ?: ""
+            keyAlias "void"
+            keyPassword System.getenv("VOID_KEY_PASSWORD") ?: ""
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.void_
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.void_
+        }
+    }
+}

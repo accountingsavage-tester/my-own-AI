@@ -1,0 +1,71 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Application name'
+        required: true
+        default: 'My APK'
+      package_name:
+        description: 'Android package name'
+        required: true
+        default: 'com.example.myapp'
+      version_name:
+        description: 'Version name'
+        required: true
+        default: '1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply build settings
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = 'app/build.gradle'
+          s = open(p).read()
+          package = os.environ['PACKAGE_NAME']
+          version = os.environ['VERSION_NAME']
+          if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+', package):
+              raise SystemExit('Invalid Android package name')
+          s = re.sub(r'applicationId \'[^\']+\'', "applicationId '%s'" % package, s)
+          s = re.sub(r'versionName \'[^\']+\'', "versionName '%s'" % version.replace("'", ''), s)
+          open(p, 'w').write(s)
+          m = 'app/src/main/AndroidManifest.xml'
+          ms = open(m).read().replace('android:label="APK Builder"', 'android:label="%s"' % os.environ['APP_NAME'].replace('&','&amp;').replace('"','&quot;'))
+          open(m, 'w').write(ms)
+          PY
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ inputs.app_name }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
